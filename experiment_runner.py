@@ -14,6 +14,8 @@ import sys
 M = 99999
 LOSS_AVERSION_FACTOR = 0.1
 ATTACKER_LOSS_FACTOR = 0.3
+REWARDS_FILE = "20180429-rewards.pickle"
+BONMIN_EXEC = "/home/ashton/Bonmin-1.8.6/bin/bonmin"
 
 
 
@@ -97,7 +99,7 @@ class Experiment:
                 for s, theta, a in model.attacks)
     
     def solve(self, tee_p=False):
-        self.solver = pyomo.opt.SolverFactory('bonmin', executable='/Users/ashton/school/cmsc828m/project/code/Bonmin-1.8.6.backup/bin/bonmin')
+        self.solver = pyomo.opt.SolverFactory('bonmin', executable=BONMIN_EXEC, validate=False)
         start_time = time.time()
         self.solver.solve(self.m, tee=tee_p)
         end_time = time.time()
@@ -112,7 +114,11 @@ class Experiment:
             str(self.c),
             str(self.m.h),
             str(self.duration),
-            self.pickle_path
+            self.pickle_path,
+            # num vars
+            str(sum(sum(len(a) for a in b) for b in self.rewards) + 2 * len(self.rewards) + 3),
+            # num constraints
+            str(sum(sum(len(a) for a in b) for b in self.rewards) * 2 + 2 * len(self.rewards) + 3)
         ])
     
     def print_results(self):
@@ -138,7 +144,9 @@ def get_log_header():
         "c",
         "x",
         "duration",
-        "experiment_pickle_path"
+        "experiment_pickle_path",
+        "num_vars",
+        "num_constraints"
     ]) + "\n"
 
 # In[142]:
@@ -167,10 +175,11 @@ def run_experiments(experiments, experiments_dir):
             f.write(e.get_log() + '\n')
             e.print_results()
             sys.stdout.flush()
+            f.flush()
 
 
 
-rewards = pickle.load(open('/Users/ashton/school/cmsc828m/project/data/attacker_actions/20180429-rewards.pickle', 'rb'))
+rewards = pickle.load(open(REWARDS_FILE, 'rb'))
 
 #c = [0.5 / 2] * 2
 # add null option
@@ -178,7 +187,10 @@ for i in range(len(rewards)):
     for j in range(len(rewards[i])):
         rewards[i][j].append({'bs': 0, 'cve_id': 'NULL', 'es': 0, 'is': 0})
 
-experiments = [Experiment(attacker_prob=[0.5, 0.4, 0.1], service_prob=[0.1], rewards=[rewards[0]]),
-              Experiment(attacker_prob=[0.5, 0.4, 0.1], service_prob=[0.3], rewards=[rewards[0]])]
-run_experiments(experiments, "/tmp/")
+experiments = []
+attacker_prob = [0.5, 0.4, 0.1]
+for service_count in [1, 2, 4, 8, 16]:
+    experiments.append(Experiment(attacker_prob=[0.5, 0.4, 0.1], service_prob=[0.5 / service_count] * service_count, rewards=rewards[:service_count]))
+
+run_experiments(experiments, "/home/ashton/828m/game-theory-honeypot/results/")
 
