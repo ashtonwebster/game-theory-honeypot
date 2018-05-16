@@ -1,3 +1,7 @@
+# Overview
+
+This project evaluates the effectiveness of modeling optimal honeypot allocation as a Bayesian Stackleberg Game.  The main code for executing the experiments described in an upcoming paper are described in `experiment_runner.py`.
+
 # Installation
 
 ```
